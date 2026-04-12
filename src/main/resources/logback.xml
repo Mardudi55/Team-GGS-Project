@@ -1,4 +1,4 @@
-<configuration>
+<configuration shutdownHook="false">
     <conversionRule conversionWord="levelColor"
                     converterClass="org.example.LogLevelColorConverter"
     />
