@@ -8,3 +8,4 @@ dependency-reduced-pom.xml
 
 # System
 .DS_Store
+/report.txt
