@@ -1,6 +1,6 @@
 package org.example.ReportingLayer;
 
-import org.example.model.BlockReport;
+import org.example.models.BlockReport;
 
 public interface BlockListener {
     void onBlock(BlockReport report);

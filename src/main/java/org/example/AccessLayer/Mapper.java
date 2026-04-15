@@ -1,7 +1,7 @@
 package org.example.AccessLayer;
 
-import org.example.model.BlockData;
-import org.example.model.TransactionData;
+import org.example.models.BlockData;
+import org.example.models.TransactionData;
 import org.web3j.protocol.core.methods.response.EthBlock;
 import org.web3j.protocol.core.methods.response.Transaction;
 import org.web3j.utils.Convert;

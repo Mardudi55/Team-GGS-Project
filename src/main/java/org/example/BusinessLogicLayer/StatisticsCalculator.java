@@ -1,7 +1,7 @@
 package org.example.BusinessLogicLayer;
 
-import org.example.model.BlockReport;
-import org.example.model.TransactionData;
+import org.example.models.BlockReport;
+import org.example.models.TransactionData;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
