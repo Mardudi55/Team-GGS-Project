@@ -17,7 +17,7 @@ public class BlockReport {
      */
     public BlockReport(BlockData block, List<TransactionData> transactions) {
         this.block = block;
-        this.transactions = transactions;
+        this.transactions = List.copyOf(transactions);
     }
 
     public BlockData getBlock() { return block; }
