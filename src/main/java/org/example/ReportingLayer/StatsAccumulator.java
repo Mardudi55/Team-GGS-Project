@@ -1,6 +1,6 @@
 package org.example.ReportingLayer;
 
-import org.example.models.BlockReport;
+import org.example.model.BlockReport;
 
 public class StatsAccumulator implements BlockListener {
     @Override

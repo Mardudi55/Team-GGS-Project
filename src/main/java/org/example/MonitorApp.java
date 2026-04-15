@@ -5,7 +5,7 @@ import org.example.BusinessLogicLayer.BlockProcessor;
 import org.example.ReportingLayer.BlockListener;
 import org.example.ReportingLayer.StatsAccumulator;
 import org.example.ReportingLayer.SummaryReportWriter;
-import org.example.models.BlockReport;
+import org.example.model.BlockReport;
 import ch.qos.logback.classic.LoggerContext;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

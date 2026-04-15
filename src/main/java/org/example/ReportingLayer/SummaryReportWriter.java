@@ -1,6 +1,6 @@
 package org.example.ReportingLayer;
 
-import org.example.models.BlockReport;
+import org.example.model.BlockReport;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
