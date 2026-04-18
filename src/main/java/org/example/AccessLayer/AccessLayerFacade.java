@@ -2,26 +2,26 @@ package org.example.AccessLayer;
 
 import org.web3j.protocol.Web3j;
 import org.web3j.protocol.http.HttpService;
+import org.web3j.protocol.core.DefaultBlockParameter;
 import org.web3j.protocol.core.DefaultBlockParameterName;
 import org.web3j.protocol.core.methods.response.*;
 
 import java.math.BigInteger;
+import java.util.ArrayList;
+import java.util.List;
 
 public class AccessLayerFacade {
 
     private final Web3j web3j;
 
-    // Konstruktor - inicjalizacja klienta
+    //KONSTRUKTOR
     public AccessLayerFacade() {
-
         String rpcUrl = "https://eth-sepolia.g.alchemy.com/v2/meML7wFPg5fL9WPRSVUqa";
-
         this.web3j = Web3j.build(new HttpService(rpcUrl));
     }
 
-    // Sprawdzenie połączenia
+    //SPRAWDZENIE POŁĄCZENIA
     public boolean isConnected() {
-
         try {
             String version = web3j.web3ClientVersion()
                     .send()
@@ -37,62 +37,129 @@ public class AccessLayerFacade {
         }
     }
 
-    // Pobranie numeru najnowszego bloku
+    //NAJNOWSZY BLOK
     public BigInteger getLatestBlockNumber() {
-
         try {
             return web3j.ethBlockNumber()
                     .send()
                     .getBlockNumber();
-
         } catch (Exception e) {
             e.printStackTrace();
             return BigInteger.valueOf(-1);
         }
     }
 
-    // Pobranie najnowszego bloku (bez transakcji)
-    public EthBlock getLatestBlock() {
 
+    // MODELE DANYCH
+
+
+    public static class BlockHeader {
+        public String hash;
+        public BigInteger number;
+        public BigInteger timestamp;
+        public String parentHash;
+
+        public BlockHeader(String hash, BigInteger number,
+                           BigInteger timestamp, String parentHash) {
+            this.hash = hash;
+            this.number = number;
+            this.timestamp = timestamp;
+            this.parentHash = parentHash;
+        }
+
+        @Override
+        public String toString() {
+            return "BlockHeader{" +
+                    "hash='" + hash + '\'' +
+                    ", number=" + number +
+                    ", timestamp=" + timestamp +
+                    ", parentHash='" + parentHash + '\'' +
+                    '}';
+        }
+    }
+
+    public static class TransactionData {
+        public String hash;
+        public String from;
+        public String to;
+        public BigInteger value;
+
+        public TransactionData(String hash, String from,
+                               String to, BigInteger value) {
+            this.hash = hash;
+            this.from = from;
+            this.to = to;
+            this.value = value;
+        }
+
+        @Override
+        public String toString() {
+            return "TransactionData{" +
+                    "hash='" + hash + '\'' +
+                    ", from='" + from + '\'' +
+                    ", to='" + to + '\'' +
+                    ", value=" + value +
+                    '}';
+        }
+    }
+
+    //EKSTRAKCJA NAGŁÓWKA BLOKU
+
+    public BlockHeader getBlockHeader(BigInteger blockNumber) {
         try {
-            return web3j.ethGetBlockByNumber(
-                    DefaultBlockParameterName.LATEST,
+            EthBlock response = web3j.ethGetBlockByNumber(
+                    DefaultBlockParameter.valueOf(blockNumber),
                     false
             ).send();
 
+            EthBlock.Block block = response.getBlock();
+
+            return new BlockHeader(
+                    block.getHash(),
+                    block.getNumber(),
+                    block.getTimestamp(),
+                    block.getParentHash()
+            );
+
         } catch (Exception e) {
             e.printStackTrace();
             return null;
         }
     }
 
-    // Pobranie salda adresu
-    public BigInteger getBalance(String address) {
+
+    //EKSTRAKCJA TRANSAKCJI
+
+
+    public List<TransactionData> getTransactionsFromBlock(BigInteger blockNumber) {
+
+        List<TransactionData> list = new ArrayList<>();
 
         try {
-            EthGetBalance balance = web3j.ethGetBalance(
-                    address,
-                    DefaultBlockParameterName.LATEST
+            EthBlock response = web3j.ethGetBlockByNumber(
+                    DefaultBlockParameter.valueOf(blockNumber),
+                    true
             ).send();
 
-            return balance.getBalance();
+            EthBlock.Block block = response.getBlock();
+
+            for (EthBlock.TransactionResult<?> tx : block.getTransactions()) {
+
+                org.web3j.protocol.core.methods.response.Transaction transaction =
+                        (org.web3j.protocol.core.methods.response.Transaction) tx.get();
+
+                list.add(new TransactionData(
+                        transaction.getHash(),
+                        transaction.getFrom(),
+                        transaction.getTo(),
+                        transaction.getValue()
+                ));
+            }
 
         } catch (Exception e) {
             e.printStackTrace();
-            return BigInteger.ZERO;
         }
-    }
 
-    // Pobranie szczegółów transakcji
-    public EthTransaction getTransaction(String txHash) {
-
-        try {
-            return web3j.ethGetTransactionByHash(txHash)
-                    .send();
-
-        } catch (Exception e) {
-            e.printStackTrace();
-            return null;
-        }
+        return list;
     }
 }
