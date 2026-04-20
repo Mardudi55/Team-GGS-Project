@@ -41,6 +41,7 @@ public class MonitorApp {
 
     // Temporary field for mock generation
     private long mockBlockNumber = 1000;
+    private long lastProcessedBlock = -1;
 
     /**
      * Initializes the MonitorApp and registers all required observers.
@@ -48,6 +49,7 @@ public class MonitorApp {
     public MonitorApp() {
         log.info("Setting up the Monitor App...");
 
+        this.accessLayer = new AccessLayerFacade();
         this.statsAccumulator = new StatsAccumulator();
         this.reportWriter = new SummaryReportWriter("report.txt");
         this.consoleReporter = new ConsoleReporter();
@@ -87,12 +89,45 @@ public class MonitorApp {
 
         while (running) {
             try {
-                // TODO: Replace this mock block with real AccessLayer logic in the future
-                // List<BlockData> blocks = accessLayer.fetchLatestBlocks(1);
-                // List<BlockReport> reports = blockProcessor.process(blocks);
+                var latestBlockNumber = accessLayer.getLatestBlockNumber();
 
-                BlockReport mockReport = generateMockBlock();
-                notifyListeners(mockReport);
+                if (latestBlockNumber.longValue() == lastProcessedBlock) {
+                    Thread.sleep(POLLING_INTERVAL_MS);
+                    continue;
+                }
+
+                lastProcessedBlock = latestBlockNumber.longValue();
+
+                var header = accessLayer.getBlockHeader(latestBlockNumber);
+                if (header == null) {
+                    Thread.sleep(POLLING_INTERVAL_MS);
+                    continue;
+                }
+
+                var transactions = accessLayer.getTransactionsFromBlock(latestBlockNumber);
+
+                BlockData blockData = new BlockData(
+                        header.number.longValue(),
+                        header.hash,
+                        transactions.size(),
+                        header.timestamp.longValue()
+                );
+
+                List<TransactionData> txList = new ArrayList<>();
+
+                for (var tx : transactions) {
+                    txList.add(new TransactionData(
+                            tx.getTxHash(),
+                            tx.getSender(),
+                            tx.getReceiver(),
+                            tx.getValueEth(),
+                            tx.getGasUsed(),
+                            tx.getGasPrice()
+                    ));
+                }
+
+                BlockReport report = new BlockReport(blockData, txList);
+                notifyListeners(report);
 
                 Thread.sleep(POLLING_INTERVAL_MS);
             } catch (InterruptedException e) {
