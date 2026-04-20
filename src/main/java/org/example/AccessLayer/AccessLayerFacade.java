@@ -5,6 +5,10 @@ import org.web3j.protocol.http.HttpService;
 import org.web3j.protocol.core.DefaultBlockParameter;
 import org.web3j.protocol.core.DefaultBlockParameterName;
 import org.web3j.protocol.core.methods.response.*;
+import org.web3j.protocol.core.methods.response.EthGetTransactionReceipt;
+import org.example.models.TransactionData;
+import org.web3j.utils.Convert;
+import java.math.BigDecimal;
 
 import java.math.BigInteger;
 import java.util.ArrayList;
@@ -78,31 +82,6 @@ public class AccessLayerFacade {
         }
     }
 
-    public static class TransactionData {
-        public String hash;
-        public String from;
-        public String to;
-        public BigInteger value;
-
-        public TransactionData(String hash, String from,
-                               String to, BigInteger value) {
-            this.hash = hash;
-            this.from = from;
-            this.to = to;
-            this.value = value;
-        }
-
-        @Override
-        public String toString() {
-            return "TransactionData{" +
-                    "hash='" + hash + '\'' +
-                    ", from='" + from + '\'' +
-                    ", to='" + to + '\'' +
-                    ", value=" + value +
-                    '}';
-        }
-    }
-
     //EKSTRAKCJA NAGŁÓWKA BLOKU
 
     public BlockHeader getBlockHeader(BigInteger blockNumber) {
@@ -148,11 +127,28 @@ public class AccessLayerFacade {
                 org.web3j.protocol.core.methods.response.Transaction transaction =
                         (org.web3j.protocol.core.methods.response.Transaction) tx.get();
 
+                EthGetTransactionReceipt receiptResponse =
+                        web3j.ethGetTransactionReceipt(transaction.getHash()).send();
+
+                BigInteger gasUsed = BigInteger.ZERO;
+
+                if (receiptResponse.getTransactionReceipt().isPresent()) {
+                    gasUsed = receiptResponse.getTransactionReceipt()
+                            .get()
+                            .getGasUsed();
+                }
+                BigDecimal valueEth = Convert.fromWei(
+                        new BigDecimal(transaction.getValue()),
+                        Convert.Unit.ETHER
+                );
+
                 list.add(new TransactionData(
                         transaction.getHash(),
                         transaction.getFrom(),
                         transaction.getTo(),
-                        transaction.getValue()
+                        valueEth,
+                        gasUsed.longValue(),
+                        transaction.getGasPrice().longValue()
                 ));
             }
 
