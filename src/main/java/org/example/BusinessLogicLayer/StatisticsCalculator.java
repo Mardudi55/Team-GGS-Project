@@ -78,6 +78,10 @@ public class StatisticsCalculator {
         return txs.stream()
                 .filter(tx -> tx != null)
                 .filter(tx -> tx.getValueEth() != null && tx.getValueEth().compareTo(BigDecimal.ZERO) > 0)
+                .filter(tx -> tx.getSender() != null && !tx.getSender().isBlank())
+                .filter(tx -> tx.getReceiver() != null && !tx.getReceiver().isBlank())
                 .toList();
     }
+
+
 }

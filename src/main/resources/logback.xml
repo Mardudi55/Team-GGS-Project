@@ -5,7 +5,6 @@
 
     <statusListener class="ch.qos.logback.core.status.NopStatusListener"/>
 
-    <!-- Detailed format for DEBUG, WARN, ERROR -->
     <appender name="CONSOLE_DETAILED" class="ch.qos.logback.core.ConsoleAppender">
         <withJansi>true</withJansi>
         <filter class="ch.qos.logback.classic.filter.LevelFilter">
@@ -18,7 +17,6 @@
         </encoder>
     </appender>
 
-    <!-- Pretty/minimal format for INFO only -->
     <appender name="CONSOLE_INFO" class="ch.qos.logback.core.ConsoleAppender">
         <withJansi>true</withJansi>
         <filter class="ch.qos.logback.classic.filter.LevelFilter">
@@ -30,6 +28,8 @@
             <pattern>%d{yyyy-MM-dd HH:mm:ss} %levelColor(%-5level) %msg%n</pattern>
         </encoder>
     </appender>
+
+    <logger name="org.web3j" level="INFO" />
 
     <root level="DEBUG">
         <appender-ref ref="CONSOLE_DETAILED"/>
