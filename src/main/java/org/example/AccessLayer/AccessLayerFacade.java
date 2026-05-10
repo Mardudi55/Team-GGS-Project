@@ -55,7 +55,8 @@ public class AccessLayerFacade {
         try {
             rateLimitHandler.acquire();
         } catch (InterruptedException e) {
-            e.printStackTrace();
+//            e.printStackTrace();
+            System.out.println("Zatrzymano pobieranie transakcji.");
             return null;
         }
 

@@ -12,10 +12,7 @@ import org.example.models.TransactionData;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.math.BigDecimal;
-import java.time.Instant;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
 
@@ -25,18 +22,18 @@ import java.util.concurrent.CountDownLatch;
 public class MonitorApp {
     private static final Logger log = LoggerFactory.getLogger(MonitorApp.class);
 
-    private AccessLayerFacade accessLayer = null;
-    private BlockProcessor blockProcessor = null;
+    private final AccessLayerFacade accessLayer;
+    private final BlockProcessor blockProcessor ;
 
     private final StatsAccumulator statsAccumulator;
     private final SummaryReportWriter reportWriter;
-    private final ConsoleReporter consoleReporter;
     private final List<BlockListener> listeners = new ArrayList<>();
 
     private volatile boolean running = true;
     private CountDownLatch shutdownLatch = null;
 
     private long lastProcessedBlock = -1;
+    private Thread monitorThread;
 
     /**
      * Initializes the MonitorApp and registers all required observers.
@@ -47,12 +44,12 @@ public class MonitorApp {
         this.accessLayer = new AccessLayerFacade();
         this.statsAccumulator = new StatsAccumulator();
         this.reportWriter = new SummaryReportWriter("report.txt");
-        this.consoleReporter = new ConsoleReporter();
+        ConsoleReporter consoleReporter = new ConsoleReporter();
         this.blockProcessor = new BlockProcessor();
 
         addListener(this.statsAccumulator);
         addListener(this.reportWriter);
-        addListener(this.consoleReporter);
+        addListener(consoleReporter);
 
         this.shutdownLatch = new CountDownLatch(1);
         registerShutdownHook();
@@ -80,11 +77,13 @@ public class MonitorApp {
      * Starts the main polling loop to fetch and process blocks continuously.
      */
     public void start() {
+        this.monitorThread = Thread.currentThread();
+
         log.info("""
-Starting blockchain monitoring.
-Loading historical blockchain data...
-Press CTRL+C for graceful shutdown.
-""");
+                Starting blockchain monitoring.
+                Loading historical blockchain data...
+                Press CTRL+C for graceful shutdown.
+                """);
 
         loadInitialData();
 
@@ -102,7 +101,7 @@ Press CTRL+C for graceful shutdown.
                 }
 
                 BlockData latestBlock =
-                        latestBlocks.get(0);
+                        latestBlocks.getFirst();
 
                 var latestBlockNumber =
                         java.math.BigInteger.valueOf(
@@ -148,10 +147,14 @@ Press CTRL+C for graceful shutdown.
      * and triggering the final report generation.
      */
     public void stop() {
-        if (!running) return; // Prevent multiple executions
+        if (!running) return;
 
         log.info("Initiating graceful shutdown...");
         running = false;
+
+        if (monitorThread != null) {
+            monitorThread.interrupt();
+        }
 
         try {
             if (shutdownLatch != null) {
@@ -181,53 +184,55 @@ Press CTRL+C for graceful shutdown.
     }
 
     private void loadInitialData() {
-
-        log.info("Loading last 100 blocks...");
+        log.info("Loading historical blocks...");
 
         try {
+            List<BlockData> blocks = accessLayer.fetchLatestBlocks(100);
 
-            List<BlockData> blocks =
-                    accessLayer.fetchLatestBlocks(100);
+            if (blocks == null) {
+                log.warn("Failed to fetch historical blocks (returned null).");
+                return;
+            }
 
-            int limit = Math.min(10, blocks.size());
+            for (int i = 0; i < blocks.size() && running; i++) {
+                if (!running) break;
 
-            for (int i = 0; i < limit && running; i++) {
+                BlockData block = blocks.get(i);
+                List<TransactionData> transactions = new ArrayList<>();
+
+                if (i < 10) {
+                    transactions = accessLayer.fetchTransactions(block);
+
+                    if (transactions == null) {
+                        transactions = new ArrayList<>();
+                    }
+                }
 
                 if (!running) {
-
-                    log.info("Stopping historical block processing...");
+                    log.info("Stopping historical block processing due to shutdown...");
                     break;
                 }
 
-                BlockData block = blocks.get(i);
-
-                List<TransactionData> transactions =
-                        accessLayer.fetchTransactions(block);
-
-                BlockReport report =
-                        blockProcessor.process(
-                                block,
-                                transactions
-                        );
+                BlockReport report = blockProcessor.process(block, transactions);
 
                 if (report != null) {
-
                     notifyListeners(report);
                 }
 
-                log.info("Processed historical block: {}",
-                        block.getBlockNumber());
+                log.info("Processed historical block: {}", block.getBlockNumber());
             }
-            if (!blocks.isEmpty()) {
 
-                lastProcessedBlock =
-                        blocks.get(0).getBlockNumber();
+            if (!blocks.isEmpty() && blocks.getFirst() != null) {
+                lastProcessedBlock = blocks.getFirst().getBlockNumber();
             }
 
         } catch (Exception e) {
-
-            log.error("Initial data load failed: {}",
-                    e.getMessage());
+            if (e instanceof InterruptedException || e.getCause() instanceof InterruptedException) {
+                log.info("Fetching data interrupted - gracefully shutting down...");
+                Thread.currentThread().interrupt();
+            } else {
+                log.error("Initial data load failed: {}", e.getMessage());
+            }
         }
     }
 }
