@@ -53,6 +53,7 @@ public class MonitorApp {
         this.statsAccumulator = new StatsAccumulator();
         this.reportWriter = new SummaryReportWriter("report.txt");
         this.consoleReporter = new ConsoleReporter();
+        this.blockProcessor = new BlockProcessor();
 
         addListener(this.statsAccumulator);
         addListener(this.reportWriter);
@@ -84,12 +85,34 @@ public class MonitorApp {
      * Starts the main polling loop to fetch and process blocks continuously.
      */
     public void start() {
-        log.info("Starting the polling loop. Press CTRL+C to perform a graceful shutdown and generate the report...");
+        log.info("""
+Starting blockchain monitoring.
+Loading historical blockchain data...
+Press CTRL+C for graceful shutdown.
+""");
+
+        loadInitialData();
+
         final int POLLING_INTERVAL_MS = 3000;
 
         while (running) {
             try {
-                var latestBlockNumber = accessLayer.getLatestBlockNumber();
+                List<BlockData> latestBlocks =
+                        accessLayer.fetchLatestBlocks(1);
+
+                if (latestBlocks.isEmpty()) {
+
+                    Thread.sleep(POLLING_INTERVAL_MS);
+                    continue;
+                }
+
+                BlockData latestBlock =
+                        latestBlocks.get(0);
+
+                var latestBlockNumber =
+                        java.math.BigInteger.valueOf(
+                                latestBlock.getBlockNumber()
+                        );
 
                 if (latestBlockNumber.longValue() == lastProcessedBlock) {
                     Thread.sleep(POLLING_INTERVAL_MS);
@@ -98,36 +121,19 @@ public class MonitorApp {
 
                 lastProcessedBlock = latestBlockNumber.longValue();
 
-                var header = accessLayer.getBlockHeader(latestBlockNumber);
-                if (header == null) {
-                    Thread.sleep(POLLING_INTERVAL_MS);
-                    continue;
+                BlockData blockData = latestBlock;
+                var transactions =
+                        accessLayer.fetchTransactions(
+                                blockData
+                        );
+
+                List<TransactionData> txList = transactions;
+
+                BlockReport report = blockProcessor.process(blockData, txList);
+
+                if (report != null) {
+                    notifyListeners(report);
                 }
-
-                var transactions = accessLayer.getTransactionsFromBlock(latestBlockNumber);
-
-                BlockData blockData = new BlockData(
-                        header.number.longValue(),
-                        header.hash,
-                        transactions.size(),
-                        header.timestamp.longValue()
-                );
-
-                List<TransactionData> txList = new ArrayList<>();
-
-                for (var tx : transactions) {
-                    txList.add(new TransactionData(
-                            tx.getTxHash(),
-                            tx.getSender(),
-                            tx.getReceiver(),
-                            tx.getValueEth(),
-                            tx.getGasUsed(),
-                            tx.getGasPrice()
-                    ));
-                }
-
-                BlockReport report = new BlockReport(blockData, txList);
-                notifyListeners(report);
 
                 Thread.sleep(POLLING_INTERVAL_MS);
             } catch (InterruptedException e) {
@@ -160,8 +166,7 @@ public class MonitorApp {
             log.info("Writing final summary report...");
             reportWriter.writeReport(statsAccumulator.getSnapshot());
 
-            // TODO: Uncomment when AccessLayer is ready
-            // if (accessLayer != null) accessLayer.disconnect();
+            if (accessLayer != null) accessLayer.disconnect();
 
         } catch (InterruptedException e) {
             log.error("Shutdown interrupted: {}", e.getMessage());
@@ -192,5 +197,55 @@ public class MonitorApp {
                 new TransactionData("0x222...", "0xCCC", "0xDDD", new BigDecimal("0.5"), 21000, 55)
         );
         return new BlockReport(block, txs);
+    }
+    private void loadInitialData() {
+
+        log.info("Loading last 100 blocks...");
+
+        try {
+
+            List<BlockData> blocks =
+                    accessLayer.fetchLatestBlocks(100);
+
+            int limit = Math.min(10, blocks.size());
+
+            for (int i = 0; i < limit && running; i++) {
+
+                if (!running) {
+
+                    log.info("Stopping historical block processing...");
+                    break;
+                }
+
+                BlockData block = blocks.get(i);
+
+                List<TransactionData> transactions =
+                        accessLayer.fetchTransactions(block);
+
+                BlockReport report =
+                        blockProcessor.process(
+                                block,
+                                transactions
+                        );
+
+                if (report != null) {
+
+                    notifyListeners(report);
+                }
+
+                log.info("Processed historical block: {}",
+                        block.getBlockNumber());
+            }
+            if (!blocks.isEmpty()) {
+
+                lastProcessedBlock =
+                        blocks.get(0).getBlockNumber();
+            }
+
+        } catch (Exception e) {
+
+            log.error("Initial data load failed: {}",
+                    e.getMessage());
+        }
     }
 }
