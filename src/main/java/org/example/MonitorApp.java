@@ -53,6 +53,7 @@ public class MonitorApp {
         this.statsAccumulator = new StatsAccumulator();
         this.reportWriter = new SummaryReportWriter("report.txt");
         this.consoleReporter = new ConsoleReporter();
+        this.blockProcessor = new BlockProcessor();
 
         addListener(this.statsAccumulator);
         addListener(this.reportWriter);
@@ -126,8 +127,11 @@ public class MonitorApp {
                     ));
                 }
 
-                BlockReport report = new BlockReport(blockData, txList);
-                notifyListeners(report);
+                BlockReport report = blockProcessor.process(blockData, txList);
+
+                if (report != null) {
+                    notifyListeners(report);
+                }
 
                 Thread.sleep(POLLING_INTERVAL_MS);
             } catch (InterruptedException e) {

@@ -2,7 +2,6 @@ package org.example.ReportingLayer;
 
 import org.example.models.BlockReport;
 import org.example.models.StatsSnapshot;
-import org.example.models.TransactionData;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
@@ -27,11 +26,12 @@ public class StatsAccumulator implements BlockListener {
     public void onBlock(BlockReport report) {
         totalBlocks++;
         totalTransactions += report.getBlock().getTransactionCount();
+        totalValueEth = totalValueEth.add(report.getTotalValueEth());
 
-        for (TransactionData tx : report.getTransactions()) {
-            totalValueEth = totalValueEth.add(tx.getValueEth());
-            totalGasUsed = totalGasUsed.add(BigDecimal.valueOf(tx.getGasUsed()));
-        }
+        BigDecimal blockTransactionsCount = BigDecimal.valueOf(report.getTransactions().size());
+        BigDecimal blockTotalGas = report.getAvgGasUsed().multiply(blockTransactionsCount);
+
+        totalGasUsed = totalGasUsed.add(blockTotalGas);
     }
 
     /**
