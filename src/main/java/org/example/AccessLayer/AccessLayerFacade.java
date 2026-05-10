@@ -37,7 +37,12 @@ public class AccessLayerFacade {
     public List<BlockData> fetchLatestBlocks(
             int count) {
 
-        rateLimitHandler.acquire();
+        try {
+            rateLimitHandler.acquire();
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+            return null;
+        }
 
         return blockFetcher.fetchLatestBlocks(
                 count
@@ -47,7 +52,12 @@ public class AccessLayerFacade {
     public List<TransactionData> fetchTransactions(
             BlockData block) {
 
-        rateLimitHandler.acquire();
+        try {
+            rateLimitHandler.acquire();
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+            return null;
+        }
 
         return transactionFetcher.fetchTransactions(
                 block

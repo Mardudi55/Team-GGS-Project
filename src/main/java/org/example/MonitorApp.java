@@ -25,22 +25,17 @@ import java.util.concurrent.CountDownLatch;
 public class MonitorApp {
     private static final Logger log = LoggerFactory.getLogger(MonitorApp.class);
 
-    // Dependencies to be injected later by the team
     private AccessLayerFacade accessLayer = null;
     private BlockProcessor blockProcessor = null;
 
-    // Reporting layer components owned by MonitorApp (as per UML diagram)
     private final StatsAccumulator statsAccumulator;
     private final SummaryReportWriter reportWriter;
     private final ConsoleReporter consoleReporter;
-
     private final List<BlockListener> listeners = new ArrayList<>();
 
     private volatile boolean running = true;
     private CountDownLatch shutdownLatch = null;
 
-    // Temporary field for mock generation
-    private long mockBlockNumber = 1000;
     private long lastProcessedBlock = -1;
 
     /**
@@ -185,19 +180,6 @@ Press CTRL+C for graceful shutdown.
         }));
     }
 
-    /**
-     * Temporary helper method to simulate the business logic layer output.
-     * * @return a mock BlockReport containing dummy transaction data
-     */
-    private BlockReport generateMockBlock() {
-        mockBlockNumber++;
-        BlockData block = new BlockData(mockBlockNumber, "0xabc" + mockBlockNumber, 2, Instant.now().getEpochSecond());
-        List<TransactionData> txs = Arrays.asList(
-                new TransactionData("0x111...", "0xAAA", "0xBBB", new BigDecimal("1.5"), 21000, 50),
-                new TransactionData("0x222...", "0xCCC", "0xDDD", new BigDecimal("0.5"), 21000, 55)
-        );
-        return new BlockReport(block, txs);
-    }
     private void loadInitialData() {
 
         log.info("Loading last 100 blocks...");

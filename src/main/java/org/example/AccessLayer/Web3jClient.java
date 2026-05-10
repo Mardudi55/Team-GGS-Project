@@ -11,7 +11,7 @@ public class Web3jClient {
     public Web3jClient(String rpcUrl) {
 
         this.rpcUrl = rpcUrl;
-        this.web3j = Web3j.build(new HttpService(rpcUrl));
+        this.web3j = Web3j.build(new HttpService(this.rpcUrl));
     }
 
     public boolean isConnected() {
