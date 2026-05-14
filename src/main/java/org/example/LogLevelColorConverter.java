@@ -5,7 +5,16 @@ import ch.qos.logback.classic.spi.ILoggingEvent;
 import ch.qos.logback.core.pattern.color.ANSIConstants;
 import ch.qos.logback.core.pattern.color.ForegroundCompositeConverterBase;
 
+/**
+ * Class used to set custom colors for the Logback Logger.
+ * It is used solely by the Logback library.
+ */
 public class LogLevelColorConverter extends ForegroundCompositeConverterBase<ILoggingEvent> {
+    /**
+     * Overriden method used for retrieving custom color values for different logging levels.
+     * @param event Internal event managed by Logback.
+     * @return {@code String} containing ANSI coloring code.
+     */
     @Override
     protected String getForegroundColorCode(ILoggingEvent event) {
         final String CUSTOM_GRAY_FG = "90m";
