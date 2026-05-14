@@ -63,4 +63,28 @@ class BlockProcessorTest{
 
         assertEquals(new BigDecimal("4.0"), result);
     }
+    @Test
+    void shouldIgnoreTransactionsWithMissingSenderOrReceiver() {
+        TransactionData tx1 = new TransactionData("1", "SenderA", "ReceiverB", BigDecimal.ONE, 100, 1);
+        TransactionData tx2 = new TransactionData("2", "", "ReceiverB", BigDecimal.ONE, 100, 1);
+        TransactionData tx3 = new TransactionData("3", "SenderA", null, BigDecimal.ONE, 100, 1);
+
+        BigDecimal result = calculator.calcTotalValueEth(List.of(tx1, tx2, tx3));
+
+        assertEquals(new BigDecimal("1"), result);
+    }
+
+    @Test
+    void shouldReturnZeroWhenTransactionListIsNullForCalculations() {
+        assertEquals(BigDecimal.ZERO, calculator.calcAvgGasUsed(null));
+        assertEquals(BigDecimal.ZERO, calculator.calcTotalValueEth(null));
+    }
+    @Test
+    void shouldReturnNullWhenBlockDataIsNullInProcessor() {
+        org.example.BusinessLogicLayer.BlockProcessor processor = new org.example.BusinessLogicLayer.BlockProcessor();
+
+        BlockReport report = processor.process(null, List.of());
+
+        assertNull(report);
+    }
 }

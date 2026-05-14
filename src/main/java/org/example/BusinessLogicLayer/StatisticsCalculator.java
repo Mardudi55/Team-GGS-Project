@@ -40,7 +40,7 @@ public class StatisticsCalculator {
             return BigDecimal.ZERO;
         }
 
-        // Filtrujemy puste transakcje przed wyliczeniem
+
         List<TransactionData> validTxs = getValidTransactions(txs);
         if (validTxs.isEmpty()) {
             return BigDecimal.ZERO;

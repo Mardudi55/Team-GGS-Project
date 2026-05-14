@@ -12,10 +12,7 @@ import org.example.models.TransactionData;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.math.BigDecimal;
-import java.time.Instant;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
 
@@ -25,23 +22,18 @@ import java.util.concurrent.CountDownLatch;
 public class MonitorApp {
     private static final Logger log = LoggerFactory.getLogger(MonitorApp.class);
 
-    // Dependencies to be injected later by the team
-    private AccessLayerFacade accessLayer = null;
-    private BlockProcessor blockProcessor = null;
+    private final AccessLayerFacade accessLayer;
+    private final BlockProcessor blockProcessor ;
 
-    // Reporting layer components owned by MonitorApp (as per UML diagram)
     private final StatsAccumulator statsAccumulator;
     private final SummaryReportWriter reportWriter;
-    private final ConsoleReporter consoleReporter;
-
     private final List<BlockListener> listeners = new ArrayList<>();
 
     private volatile boolean running = true;
     private CountDownLatch shutdownLatch = null;
 
-    // Temporary field for mock generation
-    private long mockBlockNumber = 1000;
     private long lastProcessedBlock = -1;
+    private Thread monitorThread;
 
     /**
      * Initializes the MonitorApp and registers all required observers.
@@ -52,12 +44,12 @@ public class MonitorApp {
         this.accessLayer = new AccessLayerFacade();
         this.statsAccumulator = new StatsAccumulator();
         this.reportWriter = new SummaryReportWriter("report.txt");
-        this.consoleReporter = new ConsoleReporter();
+        ConsoleReporter consoleReporter = new ConsoleReporter();
         this.blockProcessor = new BlockProcessor();
 
         addListener(this.statsAccumulator);
         addListener(this.reportWriter);
-        addListener(this.consoleReporter);
+        addListener(consoleReporter);
 
         this.shutdownLatch = new CountDownLatch(1);
         registerShutdownHook();
@@ -85,12 +77,36 @@ public class MonitorApp {
      * Starts the main polling loop to fetch and process blocks continuously.
      */
     public void start() {
-        log.info("Starting the polling loop. Press CTRL+C to perform a graceful shutdown and generate the report...");
+        this.monitorThread = Thread.currentThread();
+
+        log.info("""
+                Starting blockchain monitoring.
+                Loading historical blockchain data...
+                Press CTRL+C for graceful shutdown.
+                """);
+
+        loadInitialData();
+
         final int POLLING_INTERVAL_MS = 3000;
 
         while (running) {
             try {
-                var latestBlockNumber = accessLayer.getLatestBlockNumber();
+                List<BlockData> latestBlocks =
+                        accessLayer.fetchLatestBlocks(1);
+
+                if (latestBlocks.isEmpty()) {
+
+                    Thread.sleep(POLLING_INTERVAL_MS);
+                    continue;
+                }
+
+                BlockData latestBlock =
+                        latestBlocks.getFirst();
+
+                var latestBlockNumber =
+                        java.math.BigInteger.valueOf(
+                                latestBlock.getBlockNumber()
+                        );
 
                 if (latestBlockNumber.longValue() == lastProcessedBlock) {
                     Thread.sleep(POLLING_INTERVAL_MS);
@@ -99,33 +115,13 @@ public class MonitorApp {
 
                 lastProcessedBlock = latestBlockNumber.longValue();
 
-                var header = accessLayer.getBlockHeader(latestBlockNumber);
-                if (header == null) {
-                    Thread.sleep(POLLING_INTERVAL_MS);
-                    continue;
-                }
+                BlockData blockData = latestBlock;
+                var transactions =
+                        accessLayer.fetchTransactions(
+                                blockData
+                        );
 
-                var transactions = accessLayer.getTransactionsFromBlock(latestBlockNumber);
-
-                BlockData blockData = new BlockData(
-                        header.number.longValue(),
-                        header.hash,
-                        transactions.size(),
-                        header.timestamp.longValue()
-                );
-
-                List<TransactionData> txList = new ArrayList<>();
-
-                for (var tx : transactions) {
-                    txList.add(new TransactionData(
-                            tx.getTxHash(),
-                            tx.getSender(),
-                            tx.getReceiver(),
-                            tx.getValueEth(),
-                            tx.getGasUsed(),
-                            tx.getGasPrice()
-                    ));
-                }
+                List<TransactionData> txList = transactions;
 
                 BlockReport report = blockProcessor.process(blockData, txList);
 
@@ -151,10 +147,14 @@ public class MonitorApp {
      * and triggering the final report generation.
      */
     public void stop() {
-        if (!running) return; // Prevent multiple executions
+        if (!running) return;
 
         log.info("Initiating graceful shutdown...");
         running = false;
+
+        if (monitorThread != null) {
+            monitorThread.interrupt();
+        }
 
         try {
             if (shutdownLatch != null) {
@@ -164,8 +164,7 @@ public class MonitorApp {
             log.info("Writing final summary report...");
             reportWriter.writeReport(statsAccumulator.getSnapshot());
 
-            // TODO: Uncomment when AccessLayer is ready
-            // if (accessLayer != null) accessLayer.disconnect();
+            if (accessLayer != null) accessLayer.disconnect();
 
         } catch (InterruptedException e) {
             log.error("Shutdown interrupted: {}", e.getMessage());
@@ -184,17 +183,56 @@ public class MonitorApp {
         }));
     }
 
-    /**
-     * Temporary helper method to simulate the business logic layer output.
-     * * @return a mock BlockReport containing dummy transaction data
-     */
-    private BlockReport generateMockBlock() {
-        mockBlockNumber++;
-        BlockData block = new BlockData(mockBlockNumber, "0xabc" + mockBlockNumber, 2, Instant.now().getEpochSecond());
-        List<TransactionData> txs = Arrays.asList(
-                new TransactionData("0x111...", "0xAAA", "0xBBB", new BigDecimal("1.5"), 21000, 50),
-                new TransactionData("0x222...", "0xCCC", "0xDDD", new BigDecimal("0.5"), 21000, 55)
-        );
-        return new BlockReport(block, txs);
+    private void loadInitialData() {
+        log.info("Loading historical blocks...");
+
+        try {
+            List<BlockData> blocks = accessLayer.fetchLatestBlocks(100);
+
+            if (blocks == null) {
+                log.warn("Failed to fetch historical blocks (returned null).");
+                return;
+            }
+
+            for (int i = 0; i < blocks.size() && running; i++) {
+                if (!running) break;
+
+                BlockData block = blocks.get(i);
+                List<TransactionData> transactions = new ArrayList<>();
+
+                if (i < 10) {
+                    transactions = accessLayer.fetchTransactions(block);
+
+                    if (transactions == null) {
+                        transactions = new ArrayList<>();
+                    }
+                }
+
+                if (!running) {
+                    log.info("Stopping historical block processing due to shutdown...");
+                    break;
+                }
+
+                BlockReport report = blockProcessor.process(block, transactions);
+
+                if (report != null) {
+                    notifyListeners(report);
+                }
+
+                log.info("Processed historical block: {}", block.getBlockNumber());
+            }
+
+            if (!blocks.isEmpty() && blocks.getFirst() != null) {
+                lastProcessedBlock = blocks.getFirst().getBlockNumber();
+            }
+
+        } catch (Exception e) {
+            if (e instanceof InterruptedException || e.getCause() instanceof InterruptedException) {
+                log.info("Fetching data interrupted - gracefully shutting down...");
+                Thread.currentThread().interrupt();
+            } else {
+                log.error("Initial data load failed: {}", e.getMessage());
+            }
+        }
     }
 }
