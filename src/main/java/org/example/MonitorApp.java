@@ -12,14 +12,12 @@ import org.example.models.TransactionData;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.IOException;
 import java.math.BigInteger;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
 
-/**
- * Orchestrates the fetching, processing, and reporting of blockchain data.
- */
 public class MonitorApp {
     private static final Logger log = LoggerFactory.getLogger(MonitorApp.class);
 
@@ -90,7 +88,12 @@ public class MonitorApp {
 
 
         while (running) {
-            List<BlockData> latestBlocks = accessLayer.fetchLatestBlocks(1);
+            List<BlockData> latestBlocks;
+            try {
+                latestBlocks = accessLayer.fetchLatestBlocks(1);
+            } catch (IOException e) {
+                continue;
+            }
 
             if (latestBlocks.isEmpty()) {
                 continue;
@@ -105,7 +108,12 @@ public class MonitorApp {
 
             lastProcessedBlock = latestBlockNumber.longValue();
 
-            List<TransactionData> txList = accessLayer.fetchTransactions(latestBlock);
+            List<TransactionData> txList = List.of();
+            try {
+                txList = accessLayer.fetchTransactions(latestBlock);
+            } catch (IOException e) {
+                log.error("Could not fetch transaction.");
+            }
             BlockReport report = blockProcessor.process(latestBlock, txList);
 
             if (report != null) {
@@ -161,7 +169,9 @@ public class MonitorApp {
 
     private void loadInitialData() {
         try {
-            List<BlockData> blocks = accessLayer.fetchLatestBlocks(100);
+            List<BlockData> blocks;
+
+            blocks = accessLayer.fetchLatestBlocks(100);
 
             if (blocks == null) {
                 log.warn("Failed to fetch historical blocks (returned null).");
@@ -169,14 +179,17 @@ public class MonitorApp {
             }
 
             for (int i = 0; i < blocks.size() && running; i++) {
-                log.info("start processing of a block");
                 if (!running) break;
 
                 BlockData block = blocks.get(i);
                 List<TransactionData> transactions = List.of();
 
                 if (i < 10) {
-                    transactions = accessLayer.fetchTransactions(block);
+                    try {
+                        transactions = accessLayer.fetchTransactions(block);
+                    } catch (IOException e) {
+                        log.error("Could not fetch transaction.");
+                    }
                 }
 
                 if (transactions == null) {

@@ -1,55 +1,63 @@
 package org.example.AccessLayer;
 
 import org.example.models.BlockData;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.web3j.protocol.Web3j;
 import org.web3j.protocol.core.DefaultBlockParameter;
 import org.web3j.protocol.core.methods.response.EthBlock;
 
-import java.util.ArrayList;
-import java.util.List;
+import java.io.IOException;
 
+/**
+ * Fetches Ethereum block metadata via JSON-RPC without loading full transaction bodies.
+ */
 class BlockFetcher {
 
-    private static final Logger log = LoggerFactory.getLogger(BlockFetcher.class);
     private final Web3j web3j;
 
+    /**
+     * Constructs fetcher using transport from provided client.
+     *
+     * @param client connected {@link Web3jClient}; must not be {@code null}
+     */
     public BlockFetcher(Web3jClient client) {
         this.web3j = client.getWeb3j();
     }
 
-    public List<BlockData> fetchLatestBlocks(int count) {
-        List<BlockData> blocks = new ArrayList<>();
-        try {
-            long latest = web3j.ethBlockNumber()
-                    .send()
-                    .getBlockNumber()
-                    .longValue();
+    /**
+     * Retrieves the latest canonical block number ({@code eth_blockNumber}).
+     *
+     * @return latest block number as {@code long}
+     * @throws IOException if RPC call fails at transport level
+     */
+    public long fetchLatestBlockNumber() throws IOException {
+        return web3j.ethBlockNumber()
+                .send()
+                .getBlockNumber()
+                .longValue();
+    }
 
-            long start = latest - count + 1;
-            for (long i = latest; i >= start; i--) {
-                EthBlock response = web3j.ethGetBlockByNumber(
-                        DefaultBlockParameter.valueOf(java.math.BigInteger.valueOf(i)),
-                        false
-                ).send();
+    /**
+     * Fetches block metadata for the given block number ({@code eth_getBlockByNumber}).
+     * Transaction bodies are not hydrated; only transaction count is recorded.
+     *
+     * @param blockNumber target block number; must be &gt;= 0
+     * @return {@link BlockData} containing number, hash, transaction count, and Unix timestamp
+     * @throws IOException              if RPC call fails at transport level
+     * @throws NullPointerException     if returned block is {@code null} (unknown block number)
+     */
+    public BlockData fetchBlock(long blockNumber) throws IOException {
+        EthBlock response = web3j.ethGetBlockByNumber(
+                DefaultBlockParameter.valueOf(java.math.BigInteger.valueOf(blockNumber)),
+                false
+        ).send();
 
-                //log.warn(response.toString());
+        EthBlock.Block block = response.getBlock();
 
-                EthBlock.Block block = response.getBlock();
-
-                blocks.add(new BlockData(
-                        block.getNumber().longValue(),
-                        block.getHash(),
-                        block.getTransactions().size(),
-                        block.getTimestamp().longValue()
-                ));
-            }
-
-        } catch (Exception e) {
-            log.warn(e.getMessage());
-        }
-
-        return blocks;
+        return new BlockData(
+                block.getNumber().longValue(),
+                block.getHash(),
+                block.getTransactions().size(),
+                block.getTimestamp().longValue()
+        );
     }
 }
