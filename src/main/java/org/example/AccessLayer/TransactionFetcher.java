@@ -2,6 +2,8 @@ package org.example.AccessLayer;
 
 import org.example.models.BlockData;
 import org.example.models.TransactionData;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.web3j.protocol.Web3j;
 import org.web3j.protocol.core.DefaultBlockParameter;
 import org.web3j.protocol.core.methods.response.*;
@@ -14,6 +16,7 @@ import java.util.List;
 
 class TransactionFetcher {
 
+    private static final Logger log = LoggerFactory.getLogger(TransactionFetcher.class);
     private final Web3j web3j;
 
     public TransactionFetcher(Web3jClient client) {
@@ -61,7 +64,7 @@ class TransactionFetcher {
             }
 
         } catch (Exception e) {
-            e.printStackTrace();
+            log.warn(e.getMessage());
         }
 
         return list;
