@@ -228,7 +228,7 @@ public class MonitorApp {
 
         } catch (Exception e) {
             if (e instanceof InterruptedException || e.getCause() instanceof InterruptedException) {
-                log.info("Fetching data interrupted - gracefully shutting down...");
+                log.warn("Fetching data interrupted - gracefully shutting down...");
                 Thread.currentThread().interrupt();
             } else {
                 log.error("Initial data load failed: {}", e.getMessage());
