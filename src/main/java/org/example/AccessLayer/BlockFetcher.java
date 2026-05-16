@@ -47,7 +47,7 @@ class BlockFetcher {
             }
 
         } catch (Exception e) {
-            e.printStackTrace();
+            log.warn(e.getMessage());
         }
 
         return blocks;

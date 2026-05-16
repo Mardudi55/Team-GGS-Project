@@ -2,11 +2,14 @@ package org.example.AccessLayer;
 
 import org.example.models.BlockData;
 import org.example.models.TransactionData;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.List;
 
 public class AccessLayerFacade {
 
+    private static final Logger log = LoggerFactory.getLogger(AccessLayerFacade.class);
     private final Web3jClient client;
     private final BlockFetcher blockFetcher;
     private final TransactionFetcher transactionFetcher;
@@ -29,7 +32,6 @@ public class AccessLayerFacade {
         try {
             rateLimitHandler.acquire();
         } catch (InterruptedException e) {
-            //e.printStackTrace();
             return null;
         }
 
@@ -40,8 +42,7 @@ public class AccessLayerFacade {
         try {
             rateLimitHandler.acquire();
         } catch (InterruptedException e) {
-//            e.printStackTrace();
-            System.out.println("Zatrzymano pobieranie transakcji.");
+            log.info("Transaction fetch stopped.");
             return null;
         }
 
