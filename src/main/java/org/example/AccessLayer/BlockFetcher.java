@@ -34,7 +34,7 @@ class BlockFetcher {
                         false
                 ).send();
 
-                log.warn(response.toString());
+                //log.warn(response.toString());
 
                 EthBlock.Block block = response.getBlock();
 

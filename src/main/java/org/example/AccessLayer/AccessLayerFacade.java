@@ -17,7 +17,7 @@ public class AccessLayerFacade {
 
         this.blockFetcher = new BlockFetcher(client);
         this.transactionFetcher = new TransactionFetcher(client);
-        this.rateLimitHandler = new RateLimitHandler(5);
+        this.rateLimitHandler = new RateLimitHandler(1, 200);
         this.rateLimitHandler.start();
     }
 

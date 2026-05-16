@@ -95,8 +95,6 @@ public class MonitorApp {
                         accessLayer.fetchLatestBlocks(1);
 
                 if (latestBlocks.isEmpty()) {
-
-                    Thread.sleep(POLLING_INTERVAL_MS);
                     continue;
                 }
 
@@ -109,7 +107,6 @@ public class MonitorApp {
                         );
 
                 if (latestBlockNumber.longValue() == lastProcessedBlock) {
-                    Thread.sleep(POLLING_INTERVAL_MS);
                     continue;
                 }
 
