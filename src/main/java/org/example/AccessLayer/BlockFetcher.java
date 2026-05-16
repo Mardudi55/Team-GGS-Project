@@ -10,7 +10,7 @@ import java.io.IOException;
 /**
  * Fetches Ethereum block metadata via JSON-RPC without loading full transaction bodies.
  */
-class BlockFetcher {
+public class BlockFetcher {
 
     private final Web3j web3j;
 

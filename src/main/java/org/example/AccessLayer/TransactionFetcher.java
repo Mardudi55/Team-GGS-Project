@@ -16,7 +16,7 @@ import java.util.List;
 /**
  * Fetches and maps Ethereum transactions from a given block via JSON-RPC.
  */
-class TransactionFetcher {
+public class TransactionFetcher {
 
     private final Web3j web3j;
 

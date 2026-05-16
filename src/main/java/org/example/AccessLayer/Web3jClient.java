@@ -7,7 +7,7 @@ import org.web3j.protocol.http.HttpService;
  * Thin wrapper around {@link Web3j} providing lifecycle management
  * for an Ethereum JSON-RPC connection over HTTP.
  */
-class Web3jClient {
+public class Web3jClient {
 
     private final Web3j web3j;
 

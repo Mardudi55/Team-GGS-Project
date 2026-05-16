@@ -39,6 +39,21 @@ public class AccessLayerFacade {
     }
 
     /**
+     * Constructor used for Mocks only.
+     * @param client Mock.
+     * @param blockFetcher Mock.
+     * @param transactionFetcher Mock.
+     * @param rateLimitHandler Mock.
+     */
+    AccessLayerFacade(Web3jClient client, BlockFetcher blockFetcher,
+                      TransactionFetcher transactionFetcher, RateLimitHandler rateLimitHandler) {
+        this.client = client;
+        this.blockFetcher = blockFetcher;
+        this.transactionFetcher = transactionFetcher;
+        this.rateLimitHandler = rateLimitHandler;
+    }
+
+    /**
      * Probes RPC connection liveness.
      *
      * @return {@code true} if node responds; {@code false} otherwise
