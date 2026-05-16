@@ -12,6 +12,7 @@ import org.example.models.TransactionData;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.math.BigInteger;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
@@ -87,50 +88,28 @@ public class MonitorApp {
 
         loadInitialData();
 
-        final int POLLING_INTERVAL_MS = 3000;
 
         while (running) {
-            try {
-                List<BlockData> latestBlocks =
-                        accessLayer.fetchLatestBlocks(1);
+            List<BlockData> latestBlocks = accessLayer.fetchLatestBlocks(1);
 
-                if (latestBlocks.isEmpty()) {
-                    continue;
-                }
+            if (latestBlocks.isEmpty()) {
+                continue;
+            }
 
-                BlockData latestBlock =
-                        latestBlocks.getFirst();
+            BlockData latestBlock = latestBlocks.getFirst();
+            var latestBlockNumber = BigInteger.valueOf(latestBlock.getBlockNumber());
 
-                var latestBlockNumber =
-                        java.math.BigInteger.valueOf(
-                                latestBlock.getBlockNumber()
-                        );
+            if (latestBlockNumber.longValue() == lastProcessedBlock) {
+                continue;
+            }
 
-                if (latestBlockNumber.longValue() == lastProcessedBlock) {
-                    continue;
-                }
+            lastProcessedBlock = latestBlockNumber.longValue();
 
-                lastProcessedBlock = latestBlockNumber.longValue();
+            List<TransactionData> txList = accessLayer.fetchTransactions(latestBlock);
+            BlockReport report = blockProcessor.process(latestBlock, txList);
 
-                BlockData blockData = latestBlock;
-                var transactions =
-                        accessLayer.fetchTransactions(
-                                blockData
-                        );
-
-                List<TransactionData> txList = transactions;
-
-                BlockReport report = blockProcessor.process(blockData, txList);
-
-                if (report != null) {
-                    notifyListeners(report);
-                }
-
-                Thread.sleep(POLLING_INTERVAL_MS);
-            } catch (InterruptedException e) {
-                log.warn("Polling loop interrupted: {}", e.getMessage());
-                Thread.currentThread().interrupt();
-                break;
+            if (report != null) {
+                notifyListeners(report);
             }
         }
 
@@ -181,8 +160,6 @@ public class MonitorApp {
     }
 
     private void loadInitialData() {
-        log.info("Loading historical blocks...");
-
         try {
             List<BlockData> blocks = accessLayer.fetchLatestBlocks(100);
 
@@ -192,17 +169,18 @@ public class MonitorApp {
             }
 
             for (int i = 0; i < blocks.size() && running; i++) {
+                log.info("start processing of a block");
                 if (!running) break;
 
                 BlockData block = blocks.get(i);
-                List<TransactionData> transactions = new ArrayList<>();
+                List<TransactionData> transactions = List.of();
 
                 if (i < 10) {
                     transactions = accessLayer.fetchTransactions(block);
+                }
 
-                    if (transactions == null) {
-                        transactions = new ArrayList<>();
-                    }
+                if (transactions == null) {
+                    transactions = new ArrayList<>();
                 }
 
                 if (!running) {
