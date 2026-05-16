@@ -18,6 +18,20 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
 
+/**
+ * Entry point for the Ethereum block monitoring application.
+ *
+ * <p>Orchestrates the polling loop, observer notification pipeline,
+ * historical data preload, and graceful shutdown sequence.</p>
+ *
+ * <p>Shutdown flow:
+ * <ol>
+ *   <li>JVM signal triggers shutdown hook</li>
+ *   <li>{@link #stop()} sets {@code running = false}, interrupts monitor thread</li>
+ *   <li>{@link CountDownLatch} awaited until polling loop exits</li>
+ *   <li>Final summary written; RPC connection disconnected</li>
+ * </ol>
+ */
 public class MonitorApp {
     private static final Logger log = LoggerFactory.getLogger(MonitorApp.class);
 
@@ -167,6 +181,15 @@ public class MonitorApp {
         }));
     }
 
+    /**
+     * Preloads the most recent 100 blocks into the observer pipeline.
+     *
+     * <p>Full transaction fetch is performed only for the 10 most recent blocks;
+     * older blocks are processed with an empty transaction list to reduce RPC load.
+     *
+     * <p>Sets {@link #lastProcessedBlock} to the most recent block number on success.
+     * Processing halts early if {@code running} becomes {@code false} mid-load.
+     */
     private void loadInitialData() {
         try {
             List<BlockData> blocks;
