@@ -105,7 +105,7 @@ public class AccessLayerFacade {
      * @throws IOException if fetch fails after all retries exhausted
      */
     public List<TransactionData> fetchTransactions(BlockData block) throws IOException {
-        List<TransactionData> tx = null;
+        List<TransactionData> tx = List.of();
         for (int attempt = 0; attempt < maxRetries; attempt++) {
             try {
                 rateLimitHandler.acquire();
@@ -113,7 +113,7 @@ public class AccessLayerFacade {
                 break;
             } catch (InterruptedException e) {
                 log.info("Transaction fetch stopped.");
-                return null;
+                return tx;
             } catch (IOException e) {
                 if (attempt == maxRetries - 1) throw e;
                 log.warn("Could not fetch transactions {}, retrying ({}/{})", e.getMessage(), attempt + 1, maxRetries);

@@ -109,7 +109,7 @@ public class MonitorApp {
                 continue;
             }
 
-            if (latestBlocks.isEmpty()) {
+            if (latestBlocks == null || latestBlocks.isEmpty()) {
                 continue;
             }
 
@@ -122,13 +122,13 @@ public class MonitorApp {
 
             lastProcessedBlock = latestBlockNumber.longValue();
 
-            List<TransactionData> txList = List.of();
+            BlockReport report = null;
             try {
-                txList = accessLayer.fetchTransactions(latestBlock);
+                List<TransactionData> txList = accessLayer.fetchTransactions(latestBlock);
+                report = blockProcessor.process(latestBlock, txList);
             } catch (IOException e) {
                 log.error("Could not fetch transaction.");
             }
-            BlockReport report = blockProcessor.process(latestBlock, txList);
 
             if (report != null) {
                 notifyListeners(report);
@@ -205,7 +205,7 @@ public class MonitorApp {
                 if (!running) break;
 
                 BlockData block = blocks.get(i);
-                List<TransactionData> transactions = List.of();
+                List<TransactionData> transactions = new ArrayList<>();
 
                 if (i < 10) {
                     try {
