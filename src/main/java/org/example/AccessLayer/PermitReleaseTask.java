@@ -5,7 +5,7 @@ import java.util.concurrent.Semaphore;
 /**
  * Runnable Task that is used by {@link RateLimitHandler} to manage waiting on a separate thread.
  */
-class PermitReleaseTask implements Runnable {
+public class PermitReleaseTask implements Runnable {
     private final Semaphore semaphore;
     private final int permitsPerRelease;
 

@@ -12,13 +12,25 @@ import org.example.models.TransactionData;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.IOException;
 import java.math.BigInteger;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
 
 /**
- * Orchestrates the fetching, processing, and reporting of blockchain data.
+ * Entry point for the Ethereum block monitoring application.
+ *
+ * <p>Orchestrates the polling loop, observer notification pipeline,
+ * historical data preload, and graceful shutdown sequence.</p>
+ *
+ * <p>Shutdown flow:
+ * <ol>
+ *   <li>JVM signal triggers shutdown hook</li>
+ *   <li>{@link #stop()} sets {@code running = false}, interrupts monitor thread</li>
+ *   <li>{@link CountDownLatch} awaited until polling loop exits</li>
+ *   <li>Final summary written; RPC connection disconnected</li>
+ * </ol>
  */
 public class MonitorApp {
     private static final Logger log = LoggerFactory.getLogger(MonitorApp.class);
@@ -90,9 +102,14 @@ public class MonitorApp {
 
 
         while (running) {
-            List<BlockData> latestBlocks = accessLayer.fetchLatestBlocks(1);
+            List<BlockData> latestBlocks;
+            try {
+                latestBlocks = accessLayer.fetchLatestBlocks(1);
+            } catch (IOException e) {
+                continue;
+            }
 
-            if (latestBlocks.isEmpty()) {
+            if (latestBlocks == null || latestBlocks.isEmpty()) {
                 continue;
             }
 
@@ -105,8 +122,13 @@ public class MonitorApp {
 
             lastProcessedBlock = latestBlockNumber.longValue();
 
-            List<TransactionData> txList = accessLayer.fetchTransactions(latestBlock);
-            BlockReport report = blockProcessor.process(latestBlock, txList);
+            BlockReport report = null;
+            try {
+                List<TransactionData> txList = accessLayer.fetchTransactions(latestBlock);
+                report = blockProcessor.process(latestBlock, txList);
+            } catch (IOException e) {
+                log.error("Could not fetch transaction.");
+            }
 
             if (report != null) {
                 notifyListeners(report);
@@ -159,9 +181,20 @@ public class MonitorApp {
         }));
     }
 
+    /**
+     * Preloads the most recent 100 blocks into the observer pipeline.
+     *
+     * <p>Full transaction fetch is performed only for the 10 most recent blocks;
+     * older blocks are processed with an empty transaction list to reduce RPC load.
+     *
+     * <p>Sets {@link #lastProcessedBlock} to the most recent block number on success.
+     * Processing halts early if {@code running} becomes {@code false} mid-load.
+     */
     private void loadInitialData() {
         try {
-            List<BlockData> blocks = accessLayer.fetchLatestBlocks(100);
+            List<BlockData> blocks;
+
+            blocks = accessLayer.fetchLatestBlocks(100);
 
             if (blocks == null) {
                 log.warn("Failed to fetch historical blocks (returned null).");
@@ -169,14 +202,17 @@ public class MonitorApp {
             }
 
             for (int i = 0; i < blocks.size() && running; i++) {
-                log.info("start processing of a block");
                 if (!running) break;
 
                 BlockData block = blocks.get(i);
-                List<TransactionData> transactions = List.of();
+                List<TransactionData> transactions = new ArrayList<>();
 
                 if (i < 10) {
-                    transactions = accessLayer.fetchTransactions(block);
+                    try {
+                        transactions = accessLayer.fetchTransactions(block);
+                    } catch (IOException e) {
+                        log.error("Could not fetch transaction.");
+                    }
                 }
 
                 if (transactions == null) {

@@ -1,6 +1,5 @@
 package org.example.BusinessLogicLayer;
 
-import org.example.BusinessLogicLayer.StatisticsCalculator;
 import org.example.models.BlockReport;
 import org.example.models.TransactionData;
 import org.junit.jupiter.api.Test;

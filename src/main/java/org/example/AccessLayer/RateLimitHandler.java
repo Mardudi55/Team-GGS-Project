@@ -25,7 +25,7 @@ import java.util.concurrent.TimeUnit;
  * handler.stop();
  * }</pre>
  */
-class RateLimitHandler {
+public class RateLimitHandler {
     private final Semaphore semaphore;
     private final ScheduledExecutorService scheduler;
     private final int permitsPerTimeUnit;
