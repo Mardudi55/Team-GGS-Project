@@ -28,14 +28,17 @@ import java.util.concurrent.TimeUnit;
 class RateLimitHandler {
     private final Semaphore semaphore;
     private final ScheduledExecutorService scheduler;
-    private final int permitsPerSecond;
+    private final int permitsPerTimeUnit;
+    private final long timeUnitMS;
 
     /**
-     * @param permitsPerSecond maximum number of API calls allowed per second.
+     * @param permitsPerTimeUnit maximum number of API calls allowed per {@code timeUnitMS}.
+     * @param timeUnitMS time in Milliseconds, after which scheduler releases semaphore.
      */
-    public RateLimitHandler(int permitsPerSecond) {
-        this.permitsPerSecond = permitsPerSecond;
-        this.semaphore = new Semaphore(permitsPerSecond);
+    public RateLimitHandler(int permitsPerTimeUnit, long timeUnitMS) {
+        this.permitsPerTimeUnit = permitsPerTimeUnit;
+        this.timeUnitMS = timeUnitMS;
+        this.semaphore = new Semaphore(permitsPerTimeUnit);
         this.scheduler = Executors.newSingleThreadScheduledExecutor();
     }
 
@@ -45,12 +48,11 @@ class RateLimitHandler {
      */
     public void start() {
         final long INITIAL_DELAY_MS = 0;
-        final long DELAY_MS = 1000;
 
         scheduler.scheduleAtFixedRate(
-            new PermitReleaseTask(semaphore, permitsPerSecond),
+            new PermitReleaseTask(semaphore, permitsPerTimeUnit),
             INITIAL_DELAY_MS,
-            DELAY_MS,
+            timeUnitMS,
             TimeUnit.MILLISECONDS
         );
     }

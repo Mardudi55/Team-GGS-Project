@@ -6,6 +6,7 @@ import org.example.models.TransactionData;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.util.List;
+import java.util.Objects;
 
 /**
  * Calculates aggregated statistics for Ethereum network data.
@@ -76,7 +77,7 @@ public class StatisticsCalculator {
      */
     private List<TransactionData> getValidTransactions(List<TransactionData> txs) {
         return txs.stream()
-                .filter(tx -> tx != null)
+                .filter(Objects::nonNull)
                 .filter(tx -> tx.getValueEth() != null && tx.getValueEth().compareTo(BigDecimal.ZERO) > 0)
                 .filter(tx -> tx.getSender() != null && !tx.getSender().isBlank())
                 .filter(tx -> tx.getReceiver() != null && !tx.getReceiver().isBlank())

@@ -3,6 +3,8 @@ package org.example.ReportingLayer;
 import org.example.models.BlockReport;
 import org.example.models.StatsSnapshot;
 import org.example.models.TransactionData;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.math.BigDecimal;
@@ -20,6 +22,8 @@ import java.util.stream.Collectors;
  * to a specified text file upon request, typically during application shutdown.
  */
 public class SummaryReportWriter implements BlockListener {
+
+    private static final Logger log = LoggerFactory.getLogger(SummaryReportWriter.class);
     private final List<BlockReport> buffer = new ArrayList<>();
     private final String outputFilePath;
 
@@ -98,9 +102,9 @@ public class SummaryReportWriter implements BlockListener {
         try {
             Path path = Paths.get(outputFilePath);
             Files.writeString(path, sb.toString(), StandardCharsets.UTF_8);
-            System.out.println("Summary report successfully written to: " + path.toAbsolutePath());
+            log.info("Summary report successfully written to: {}", path.toAbsolutePath());
         } catch (IOException e) {
-            System.err.println("Failed to write the summary report: " + e.getMessage());
+            log.error("Failed to write the summary report: {}", e.getMessage());
         }
     }
 }
